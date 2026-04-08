@@ -1,28 +1,26 @@
 # Antigravity Terminal Fix
 
-This repository provides a small utility script that resolves the issue where the Antigravity terminal gets stuck on **"Running command"** and never completes.
+A tiny utility that stops Antigravity from hanging on **"Running command"** by force‑killing stray processes that can block the terminal.
 
-## Problem
-When running commands (especially long‑running Python scripts) inside Antigravity, the terminal sometimes fails to capture the process exit, leaving the UI in a perpetual *Running command* state. This is typically caused by the child process not being properly terminated or its output streams not being flushed.
+## Why this exists
+When a command (e.g. a long‑running Python script) crashes or is left orphaned, Antigravity sometimes fails to receive the process exit event. The UI stays in a perpetual *Running command* state, requiring a manual cancel.
 
-## Solution
-The provided `fix_terminal.py` script launches a subprocess with:
-- **`stdout`/`stderr`** captured and flushed in real‑time.
-- **`preexec_fn=os.setsid`** (Unix) or **`creationflags=subprocess.CREATE_NEW_PROCESS_GROUP`** (Windows) to isolate the child process.
-- A **graceful termination** handler that sends a termination signal on user interrupt (Ctrl‑C) and ensures the process is killed if it hangs.
+## What the script does
+The Windows batch file `fix.bat` simply kills any lingering interpreter processes that are known to cause the stall:
+- `python.exe`
+- `powershell.exe`
+- `conhost.exe`
 
-By using this wrapper, Antigravity receives proper exit codes and output, allowing the UI to return to the idle state.
+Running the script before starting a new Antigravity session ensures a clean environment.
 
 ## Usage
-```bash
-python fix_terminal.py <your‑command> [args...]
-```
-Example:
-```bash
-python fix_terminal.py python my_script.py
-```
-
-The script will stream the command’s output to the console and guarantee that the process is cleaned up, preventing the *Running command* stall.
+1. Open a Command Prompt (or PowerShell) with administrator rights.
+2. Navigate to the repository root or the folder containing `fix.bat`.
+3. Execute:
+   ```bat
+   fix.bat
+   ```
+   The script will report which processes were terminated and pause so you can review the output.
 
 ## License
 MIT © 2026 Antigravity‑Terminal‑Fix contributors
