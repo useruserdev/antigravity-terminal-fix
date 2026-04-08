@@ -20,8 +20,8 @@ Workaround for Antigravity terminal hang bug where commands complete but remain 
 
 ### Запуск
 ```powershell
-# Перейдите в каталог репозитория
-cd C:\Users\Ahmet\Projects\AG-Terminal-fix
+# Перейдите в каталог репозитория (корень проекта)
+cd <путь_к_репозиторию>
 
 # Запустите наблюдатель (можно оставить открытым в отдельном окне)
 powershell -ExecutionPolicy Bypass -File .\watchdog.ps1
