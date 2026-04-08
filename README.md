@@ -1,26 +1,47 @@
 # Antigravity Terminal Fix
 
-A tiny utility that stops Antigravity from hanging on **"Running command"** by force‑killing stray processes that can block the terminal.
+## Описание
+Workaround for Antigravity terminal hang bug where commands complete but remain listed as "running".
 
-## Why this exists
-When a command (e.g. a long‑running Python script) crashes or is left orphaned, Antigravity sometimes fails to receive the process exit event. The UI stays in a perpetual *Running command* state, requiring a manual cancel.
+## Проблема
+Существует известный баг платформы Antigravity: `run_command` успешно завершается, но внутреннее состояние Antigravity не фиксирует завершение. В результате:
+1. `command_status` бесконечно сообщает, что команда "running".
+2. Команда остаётся в списке фоновых процессов как зомби.
+3. При накоплении зомби‑процессов новые команды могут не запускаться.
 
-## What the script does
-The Windows batch file `fix.bat` simply kills any lingering interpreter processes that are known to cause the stall:
-- `python.exe`
-- `powershell.exe`
-- `conhost.exe`
+Это **не** ошибка пользовательского окружения, а проблема синхронизации состояния на стороне платформы.
 
-Running the script before starting a new Antigravity session ensures a clean environment.
+## Обходной путь (Watchdog)
+Мы предоставляем простой скрипт, который автоматически обнаруживает, что Antigravity «застрял» (заголовок окна содержит *Running command* более 30 сек) и запускает `fix.bat`, убивая зависшие процессы (`python.exe`, `powershell.exe`, `conhost.exe`).
 
-## Usage
-1. Open a Command Prompt (or PowerShell) with administrator rights.
-2. Navigate to the repository root or the folder containing `fix.bat`.
-3. Execute:
-   ```bat
-   fix.bat
+### Как это работает
+1. **watchdog.ps1** – PowerShell‑скрипт, который каждые 5 сек проверяет заголовок окна Antigravity. Если он остаётся в состоянии *Running command* более 30 сек, скрипт автоматически вызывает `fix.bat`.
+2. **fix.bat** – Windows‑батник, который принудительно завершает процессы‑интерпретаторы, часто оставшиеся висящими после сбоя.
+
+### Запуск
+```powershell
+# Перейдите в каталог репозитория
+cd C:\Users\Ahmet\Projects\AG-Terminal-fix
+
+# Запустите наблюдатель (можно оставить открытым в отдельном окне)
+powershell -ExecutionPolicy Bypass -File .\watchdog.ps1
+```
+Скрипт будет работать в фоне и автоматически исправлять зависания.
+
+## Обходной путь через `read_terminal`
+Если `command_status` застревает, можно обойти его, читая буфер терминала напрямую.
+
+### Шаги
+1. Попросите пользователя указать PID терминала (можно получить командой `echo $$` внутри терминала).
+2. Выполните:
    ```
-   The script will report which processes were terminated and pause so you can review the output.
+   read_terminal(Name="terminal-<PID>", ProcessID="<PID>")
+   ```
+   Это вернёт полный скролл‑бэк терминала, включая вывод завершившейся команды.
+3. Парсите полученный вывод и продолжайте работу, не ожидая `command_status`.
 
-## License
+## Восстановление
+После закрытия зависших фоновых задач (кнопка ✕ в UI) последующие команды работают нормально. При необходимости просто запустите `watchdog.ps1` снова.
+
+## Лицензия
 MIT © 2026 Antigravity‑Terminal‑Fix contributors
